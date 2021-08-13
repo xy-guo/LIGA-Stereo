@@ -1,0 +1,75 @@
+# KITTI data config for training stereo model (with imitation loss)
+
+DATASET: 'StereoKittiDataset'
+DATA_PATH: './data/kitti'
+
+FLIP: True
+FORCE_FLIP: False
+
+# in lidar view
+POINT_CLOUD_RANGE: [2, -30.4, -3, 59.6, 30.4, 1]
+VOXEL_SIZE: [0.05, 0.05, 0.1] # [0.2, 0.2, 0.2]
+STEREO_VOXEL_SIZE: [0.2, 0.2, 0.2]
+
+DATA_SPLIT: {
+    'train': train,
+    'test': val
+}
+
+INFO_PATH: {
+    'train': [kitti_infos_train.pkl],
+    'test': [kitti_infos_val.pkl],
+}
+
+USE_VAN: True
+USE_PERSON_SITTING: True
+FOV_POINTS_ONLY: True
+BOXES_GT_IN_CAM2_VIEW: False
+GENERATE_CORNER_HEATMAP: False  # create gt_corner_heatmap
+CAT_REFLECT_DIM: False
+
+# data augmentor
+TRAIN_DATA_AUGMENTOR:
+    - NAME: random_crop
+      MIN_REL_X: 0
+      MAX_REL_X: 0
+      MIN_REL_Y: 1.0
+      MAX_REL_Y: 1.0
+      MAX_CROP_H: 320
+      MAX_CROP_W: 1280
+    - NAME: filter_truncated
+      AREA_RATIO_THRESH: null
+      AREA_2D_RATIO_THRESH: null
+      GT_TRUNCATED_THRESH: 0.98
+    # - NAME: random_world_rotation
+    #   WORLD_ROT_ANGLE: [-0.78539816, 0.78539816]
+    # - NAME: random_world_scaling
+    #   WORLD_SCALE_RANGE: [0.95, 1.05]
+    # - NAME: random_world_translation
+    #   WORLD_TRANSLATION_RANGE: [-0.4, -0.4, 0., 0.4, 0.4, 0.]
+TEST_DATA_AUGMENTOR:
+    - NAME: random_crop
+      MIN_REL_X: 0
+      MAX_REL_X: 0
+      MIN_REL_Y: 1.0
+      MAX_REL_Y: 1.0
+      MAX_CROP_H: 320
+      MAX_CROP_W: 1280  # min(MAX_CROP_W, old_w)
+    
+POINT_FEATURE_ENCODING: {
+    encoding_type: absolute_coordinates_encoding,
+    used_feature_list: ['x', 'y', 'z'],
+    src_feature_list: ['x', 'y', 'z'],
+}
+
+DATA_PROCESSOR:
+    - NAME: mask_points_and_boxes_outside_range
+      REMOVE_OUTSIDE_BOXES: True
+
+    - NAME: transform_points_to_voxels
+      VOXEL_SIZE: [0.05, 0.05, 0.1]
+      MAX_POINTS_PER_VOXEL: 5
+      MAX_NUMBER_OF_VOXELS: {
+        'train': 40000,
+        'test': 40000
+      }

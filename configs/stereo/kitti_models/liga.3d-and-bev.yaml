@@ -1,0 +1,274 @@
+# The final model config.
+# use ImageNet pretrained weights to initilize conv1 to conv3
+# with imitation loss
+# with 2d detection head
+
+
+CLASS_NAMES: ['Car', 'Pedestrian', 'Cyclist']
+
+DATA_CONFIG: 
+    _BASE_CONFIG_: ./configs/stereo/dataset_configs/kitti_dataset_fused.yaml
+
+
+MODEL:
+    NAME: stereo_LIGA
+
+    LIDAR_MODEL:
+        NAME: SECONDNet
+        RETURN_BATCH_DICT: True
+        PRETRAINED_MODEL: './ckpt/second_s4_hg.iouloss.ep78.backbone-no-final-bnrelu.input-only-xyz.default-lr-policy-with-wd-decay-78ep.pth'
+
+        VFE:
+            NAME: MeanVFE
+        BACKBONE_3D:
+            NAME: VoxelBackBone4xNoFinalBnReLU
+        MAP_TO_BEV:
+            NAME: HeightCompression
+            NUM_BEV_FEATURES: 160
+        BACKBONE_2D:
+            NAME: HgBEVBackbone
+            num_channels: 64
+            GN: False
+    
+    BACKBONE_3D:
+        NAME: LigaBackbone
+        maxdisp: 288
+        downsample_disp: 4
+        GN: &gn True
+        img_feature_attentionbydisp: True
+        voxel_attentionbydisp: False
+        cat_img_feature: &cat_img_feature True
+        num_3dconvs: 1
+        feature_backbone:
+            type: 'ResNet'
+            depth: 34
+            num_stages: 4
+            out_indices: [0, 1, 2, 3]
+            frozen_stages: -1 
+            norm_cfg:
+                type: 'BN'
+                requires_grad: True
+            norm_eval: False  # sem: True
+            style: 'pytorch'
+            with_max_pool: False
+            deep_stem: False
+            block_with_final_relu: False  # sem: True
+            base_channels: 64
+            strides: [1, 2, 1, 1]  # sem [1, 2, 2, 2]
+            dilations: [1, 1, 2, 4]  # sem [1, 1, 1, 1]
+            out_indices: [0, 1, 2, 3]
+            num_channels_factor: [1, 2, 2, 2]  # sem [1, 2, 4, 8]
+        # if using pt, set base=64, BN, frozen_stages=1, norm_eval=True, with_max_pool?, block_with_final_relu: True
+        feature_backbone_pretrained: 'torchvision://resnet34'
+        feature_neck:
+            GN: *gn
+            in_dims: [3, 64, 128, 128, 128]  # there is a hidden [3]
+            start_level: 2
+            stereo_dim: [32, 32]
+            with_upconv: True
+            cat_img_feature: *cat_img_feature
+            sem_dim: [128, 32]
+        sem_neck:
+            type: 'FPN'
+            in_channels: [32]
+            out_channels: 64  # TODO
+            start_level: 0
+            add_extra_convs: 'on_output'
+            num_outs: 5
+        cost_volume: [{type: "concat", downsample: 4}]
+        cv_dim: 32
+        rpn3d_dim: 32
+        downsampled_depth_offset: 0.5
+        use_stereo_out_type: "feature"
+        num_hg: 1
+    DENSE_HEAD_2D:
+        NAME: 'MMDet2DHead'
+        use_3d_center: True
+        cfg:
+            type: 'ATSSAdvHead'
+            reg_class_agnostic: False  # check True/False which one is better
+            seperate_extra_reg_branch: False  # True may be better
+            num_classes: 3
+            in_channels: 64
+            stacked_convs: 4
+            feat_channels: 64
+            anchor_generator:
+                type: 'AnchorGenerator'
+                ratios: [1.0]
+                octave_base_scale: 16
+                scales_per_octave: 1
+                strides: [4, 8, 16, 32, 64]
+            num_extra_reg_channel: &num_extra_reg_channel 0  # None: 0, hwl: 3, hwl+roty: 5, hwl+roty+alpha: 7
+            bbox_coder:
+                type: 'DeltaXYWHBBoxCoder'
+                target_means: [.0, .0, .0, .0]
+                target_stds: [0.1, 0.1, 0.2, 0.2]
+            loss_cls:
+                type: 'FocalLoss'
+                use_sigmoid: True
+                gamma: 2.0
+                alpha: 0.25
+                loss_weight: 1.0
+            loss_bbox:
+                type: 'GIoULoss'
+                loss_weight: 2.0
+            loss_centerness: 
+                type: 'CrossEntropyLoss'
+                use_sigmoid: True
+                loss_weight: 1.0
+            train_cfg:
+                assigner:
+                    type: 'ATSS3DCenterAssigner'
+                    topk: 9
+                    # thresh_mode: 'ratio'
+                    # thresh_ratio: 0.75
+                allowed_border: -1
+                pos_weight: -1
+                append_3d_centers: True
+                debug: False
+            test_cfg: 
+                nms_pre: 1000
+                min_bbox_size: 0
+                score_thr: 0.05
+                nms:
+                    type: 'nms'
+                    iou_threshold: 0.6
+                max_per_img: 100
+    MAP_TO_BEV:
+        NAME: HeightCompression
+        NUM_BEV_FEATURES: 160  # 32 * 5
+        SPARSE_INPUT: False
+
+    BACKBONE_2D:
+        NAME: HgBEVBackbone
+        num_channels: 64
+        GN: *gn
+
+    DENSE_HEAD:
+        NAME: DetHead
+        NUM_CONVS: 2
+        GN: *gn
+        CLASS_AGNOSTIC: False
+        USE_DIRECTION_CLASSIFIER: True
+        DIR_OFFSET: 0.78539
+        DIR_LIMIT_OFFSET: 0.0
+        NUM_DIR_BINS: 2
+        CLAMP_VALUE: 10.0
+        xyz_for_angles: True
+        hwl_for_angles: True
+        do_feature_imitation: True
+        imitation_cfg:
+            - lidar_feature_layer: "spatial_features_2d"
+              stereo_feature_layer: "spatial_features_2d"
+              normalize: "cw_scale"
+              layer: "conv2d"
+              channel: 64
+              ksize: 1
+              use_relu: False
+              mode: "inbox"
+            - lidar_feature_layer: "volume_features"
+              stereo_feature_layer: "volume_features"
+              normalize: "cw_scale"
+              layer: "conv3d"
+              channel: 32
+              ksize: 1
+              use_relu: False
+              mode: "inbox"
+
+        ANCHOR_GENERATOR_CONFIG: [
+            {
+                'class_name': 'Car',
+                'anchor_sizes': [[3.9, 1.6, 1.56]],  # LWH  
+                'anchor_rotations': [0, 1.57],
+                'anchor_bottom_heights': [-1.78],  # TODO: -0.825
+                'align_center': False,
+                'feature_map_stride': 1,
+                'matched_threshold': 0.6,
+                'unmatched_threshold': 0.45
+            },
+            {
+                'class_name': 'Pedestrian',
+                'anchor_sizes': [[0.8, 0.6, 1.73]],  # LWH 
+                'anchor_rotations': [0, 1.57],
+                'anchor_bottom_heights': [-0.6],  # -0.74
+                'align_center': False,
+                'feature_map_stride': 1,
+                'matched_threshold': 0.5,
+                'unmatched_threshold': 0.35
+            },
+            {
+                'class_name': 'Cyclist',
+                'anchor_sizes': [[1.76, 0.6, 1.73]],  # LWH
+                'anchor_rotations': [0, 1.57],
+                'anchor_bottom_heights': [-0.6],  # -0.74
+                'align_center': False,
+                'feature_map_stride': 1,
+                'matched_threshold': 0.5,
+                'unmatched_threshold': 0.35
+            }
+        ]
+
+        TARGET_ASSIGNER_CONFIG:
+            NAME: AxisAlignedTargetAssigner
+            POS_FRACTION: -1.0
+            SAMPLE_SIZE: 512
+            NORM_BY_NUM_EXAMPLES: False
+            MATCH_HEIGHT: False
+            BOX_CODER: ResidualCoder
+            BOX_CODER_CONFIG:
+                div_by_diagonal: True
+                use_corners: False
+                use_tanh: False
+
+        LOSS_CONFIG:
+            REG_LOSS_TYPE: 'WeightedSmoothL1Loss'
+            IOU_LOSS_TYPE: 'IOU3dLoss'
+            IMITATION_LOSS_TYPE: 'WeightedL2WithSigmaLoss'
+            LOSS_WEIGHTS: {
+                'cls_weight': 1.0,
+                'loc_weight': 0.5,
+                'dir_weight': 0.2,
+                'iou_weight': 1.0,
+                'imitation_weight': 1.0,
+                'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+            }
+    
+    DEPTH_LOSS_HEAD:
+        LOSS_TYPE: {'ce': 1.0}
+        WEIGHTS: [1.0]  # [1.0, 1.0]
+
+    POST_PROCESSING:
+        RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
+        SCORE_THRESH: 0.1
+        OUTPUT_RAW_SCORE: False
+
+        EVAL_METRIC: kitti
+
+        NMS_CONFIG:
+            MULTI_CLASSES_NMS: True
+            NMS_TYPE: nms_gpu
+            NMS_THRESH: 0.25
+            NMS_PRE_MAXSIZE: 4096
+            NMS_POST_MAXSIZE: 500
+
+
+OPTIMIZATION:
+    BATCH_SIZE_PER_GPU: 1
+    NUM_EPOCHS: 60
+
+    OPTIMIZER: adamw
+    LR: 0.001
+    WEIGHT_DECAY: 0.0001
+    MOMENTUM: 0.9
+
+    # MOMS: [0.95, 0.85]
+    # PCT_START: 0.4
+    DIV_FACTOR: 10
+    DECAY_STEP_LIST: [50]
+    LR_DECAY: 0.1
+    LR_CLIP: 0.0000001
+
+    LR_WARMUP: True
+    WARMUP_EPOCH: 1
+
+    GRAD_NORM_CLIP: 10

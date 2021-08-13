@@ -1,0 +1,12 @@
+__pycache__
+*.DS_Store
+.vscode
+*.so
+*.pkl
+*.egg-info
+liga/version.py
+outputs/
+build/
+data/
+tmp/
+ckpt/*.eval/

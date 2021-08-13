@@ -1,0 +1,10 @@
+scikit-image
+fire
+tensorboardX
+tqdm
+numpy
+numba
+easydict
+pyyaml
+mmcv-full==1.2.1
+opencv-python
