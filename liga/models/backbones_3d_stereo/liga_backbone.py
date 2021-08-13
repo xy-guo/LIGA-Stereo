@@ -116,6 +116,7 @@ class LigaBackbone(nn.Module):
                     nn.ReLU(inplace=True)))
         self.rpn3d_convs = nn.Sequential(*rpn3d_convs)
         self.rpn3d_pool = torch.nn.AvgPool3d((4, 1, 1), stride=(4, 1, 1))
+        self.num_3d_features = self.rpn3d_dim
 
         # prepare tensors
         self.prepare_depth(point_cloud_range, in_camera_view=False)

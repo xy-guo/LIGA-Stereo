@@ -8,6 +8,7 @@ from liga.ops.roiaware_pool3d import roiaware_pool3d_utils
 from .augmentor.stereo_data_augmentor import StereoDataAugmentor
 from .processor.data_processor import DataProcessor
 from .processor.point_feature_encoder import PointFeatureEncoder
+from liga.utils.calibration_kitti import Calibration
 
 
 class StereoDatasetTemplate(torch_data.Dataset):

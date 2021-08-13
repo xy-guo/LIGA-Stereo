@@ -75,9 +75,9 @@ class NormalizeLayer(nn.Module):
 
             self.center *= self.momentum
             self.center += new_center * (1 - self.momentum)
-            if dist.get_rank() == 0:
-                print("mean_center", self.center)
-                print("avg_new_center", new_center.mean().item(), "avg_mean_center", self.center.mean().item())
+            # if dist.get_rank() == 0:
+            #     print("mean_center", self.center)
+            #     print("avg_new_center", new_center.mean().item(), "avg_mean_center", self.center.mean().item())
 
             x = x - new_center
 
@@ -100,9 +100,9 @@ class NormalizeLayer(nn.Module):
             self.scale *= self.momentum
             self.scale += new_scale * (1 - self.momentum)
 
-            if dist.get_rank() == 0:
-                print("mean_scale", self.scale)
-                print("avg_new_scale", new_scale.mean(), "avg_mean_scale", self.scale.mean())
+            # if dist.get_rank() == 0:
+            #     print("mean_scale", self.scale)
+            #     print("avg_new_scale", new_scale.mean(), "avg_mean_scale", self.scale.mean())
 
 
 class AnchorHeadTemplate(nn.Module):
@@ -255,8 +255,8 @@ class AnchorHeadTemplate(nn.Module):
         if self.reduce_avg_factor:
             ori_pos_normalizer = pos_normalizer.clone().view(-1).mean()
             pos_normalizer = dist_reduce_mean(pos_normalizer.view(-1).mean())
-            if dist.get_rank() == 0:
-                print('rpn cls normalizer {}->{}'.format(ori_pos_normalizer.item(), pos_normalizer.item()))
+            # if dist.get_rank() == 0:
+            #     print('rpn cls normalizer {}->{}'.format(ori_pos_normalizer.item(), pos_normalizer.item()))
 
         cls_weights /= (pos_normalizer + self.clamp_value)
         cls_targets = box_cls_labels * cared.type_as(box_cls_labels)
@@ -357,8 +357,8 @@ class AnchorHeadTemplate(nn.Module):
             tb_dict['rpn_loss_iou'] = iou_loss_src.sum().item()
 
             reduced_iou_loss = dist_reduce_mean(iou_loss)
-            if dist.get_rank() == 0:
-                print('rpn reg iou:', reduced_iou_loss.item(), f"<{type(self.iou_loss_func)}>")
+            # if dist.get_rank() == 0:
+            #     print('rpn reg iou:', reduced_iou_loss.item(), f"<{type(self.iou_loss_func)}>")
 
         if box_dir_cls_preds is not None:
             dir_targets = self.get_direction_target(
@@ -417,8 +417,8 @@ class AnchorHeadTemplate(nn.Module):
         pre_pos_sum = positives.float().sum()
         positives = positives & torch.any(features_targets != 0, dim=-1)
         post_pos_sum = positives.float().sum()
-        if dist.get_rank() == 0:
-            print(f"rpn after filtering all zero: {pre_pos_sum} -> {post_pos_sum}")
+        # if dist.get_rank() == 0:
+        #     print(f"rpn after filtering all zero: {pre_pos_sum} -> {post_pos_sum}")
 
         reg_weights = positives.float()
         pos_normalizer = positives.sum().float()
