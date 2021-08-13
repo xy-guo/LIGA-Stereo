@@ -1,5 +1,10 @@
 # LIGA
 
+## Introduction
+
+This is the official implementation of the paper LIGA-Stereo: Learning LiDAR Geometry Aware Representations for Stereo-based 3D Detector, In ICCV'21, Xiaoyang Guo, Shaoshuai Shi, Xiaogang Wang and Hongsheng Li.
+
+[project page]() [paper]() [code](https://github.com/xy-guo/LIGA-Stereo)
 
 ## Overview
 - [Installation](#installation)
@@ -116,7 +121,7 @@ python -m liga.datasets.kitti.kitti_dataset create_gt_database_only
 
 ## Pretrained Models
 
-TBA
+[Google Drive](https://drive.google.com/file/d/1M97Wa2ehAdCD6rwEhe67Vde7y4fLtVXo/view?usp=sharing)
 
 ## Citation
 
