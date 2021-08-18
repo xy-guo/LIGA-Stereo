@@ -1,10 +1,15 @@
-# LIGA
+# LIGA-Stereo
 
 ## Introduction
 
 This is the official implementation of the paper LIGA-Stereo: Learning LiDAR Geometry Aware Representations for Stereo-based 3D Detector, In ICCV'21, Xiaoyang Guo, Shaoshuai Shi, Xiaogang Wang and Hongsheng Li.
 
-[project page]() [paper]() [code](https://github.com/xy-guo/LIGA-Stereo)
+[[project page]](https://xy-guo.github.io/liga/) 
+[[paper]](https://xy-guo.github.io/liga/liga-guo-iccv21.pdf) 
+[[code]](https://github.com/xy-guo/LIGA-Stereo)
+
+![Framework](./doc/framework.png)
+
 
 ## Overview
 - [Installation](#installation)
